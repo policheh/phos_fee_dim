@@ -1,0 +1,33 @@
+# PHOS APD settings in M4, SRU=0, FEE=12
+0x68 0x25f         # (x,z) = ( 0,50), CSP =  0, bias = 334.5 V
+0x67 0x1d3         # (x,z) = ( 0,51), CSP = 16, bias = 306.2 V
+0x69 0x248         # (x,z) = ( 1,50), CSP =  1, bias = 330.0 V
+0x66 0x23c         # (x,z) = ( 1,51), CSP = 17, bias = 327.5 V
+0x6a 0x279         # (x,z) = ( 2,50), CSP =  2, bias = 340.0 V
+0x65 0x22e         # (x,z) = ( 2,51), CSP = 18, bias = 324.7 V
+0x6b 0x279         # (x,z) = ( 3,50), CSP =  3, bias = 340.0 V
+0x64 0x388         # (x,z) = ( 3,51), CSP = 19, bias = 395.0 V
+0x6c 0x294         # (x,z) = ( 4,50), CSP =  4, bias = 345.3 V
+0x63 0x1f7         # (x,z) = ( 4,51), CSP = 20, bias = 313.6 V
+0x6d 0x287         # (x,z) = ( 5,50), CSP =  5, bias = 342.8 V
+0x62 0x255         # (x,z) = ( 5,51), CSP = 21, bias = 332.7 V
+0x6e 0x284         # (x,z) = ( 6,50), CSP =  6, bias = 342.2 V
+0x61 0x248         # (x,z) = ( 6,51), CSP = 22, bias = 330.0 V
+0x6f 0x212         # (x,z) = ( 7,50), CSP =  7, bias = 319.1 V
+0x60 0x20e         # (x,z) = ( 7,51), CSP = 23, bias = 318.1 V
+0x70 0x248         # (x,z) = ( 8,50), CSP =  8, bias = 330.0 V
+0x7f 0x2d1         # (x,z) = ( 8,51), CSP = 24, bias = 357.8 V
+0x71 0x211         # (x,z) = ( 9,50), CSP =  9, bias = 318.8 V
+0x7e 0x25c         # (x,z) = ( 9,51), CSP = 25, bias = 334.1 V
+0x72 0x388         # (x,z) = (10,50), CSP = 10, bias = 395.0 V
+0x7d 0x25a         # (x,z) = (10,51), CSP = 26, bias = 333.6 V
+0x73 0x2cb         # (x,z) = (11,50), CSP = 11, bias = 356.6 V
+0x7c 0x2ab         # (x,z) = (11,51), CSP = 27, bias = 350.0 V
+0x74 0x000         # (x,z) = (12,50), CSP = 12, bias = 211.3 V
+0x7b 0x2ab         # (x,z) = (12,51), CSP = 28, bias = 350.0 V
+0x75 0x2dc         # (x,z) = (13,50), CSP = 13, bias = 360.0 V
+0x7a 0x33f         # (x,z) = (13,51), CSP = 29, bias = 380.0 V
+0x76 0x217         # (x,z) = (14,50), CSP = 14, bias = 320.0 V
+0x79 0x2ab         # (x,z) = (14,51), CSP = 30, bias = 350.0 V
+0x77 0x33f         # (x,z) = (15,50), CSP = 15, bias = 380.0 V
+0x78 0x2b9         # (x,z) = (15,51), CSP = 31, bias = 352.8 V
