@@ -11,6 +11,7 @@
 #include "TPedCFG.hxx"
 #include "TCardOnCFG.hxx"
 #include "TBaseCFG.hxx"
+#include "TSocket.hxx"
 
 using namespace std;
 
@@ -66,12 +67,15 @@ class TSru {
   
                 // vector<TCardOnCFG*> fCardOnCFGService;  
                 int fPedRefRun;
-  
+
+                // Socket
+                TSocket* fSocket;
+
                 // monitoring services
                 vector<TBaseCFG *> fConfigMonitor;
 
 	public:
-		TSru( const char *serverRoot, int sruNum, const char *hostname );
+                TSru( const char *serverRoot, int sruNum, const char *hostname, TSocket* socket);
 		~TSru();
 		
                 int  GetNumber() { return fNumber; }
@@ -86,6 +90,8 @@ class TSru {
                 int GetPowerMaskH() { return fPowerH->GetReadback(); }
 		
 		int IsOn( int device );
+                int IsResponsive( int device );
+
 		void GetFeeMasks( int *maskh, int *maskl );
 		void GetTruMasks( int *maskh, int *maskl );
 		void UpdateRegisterMasks();

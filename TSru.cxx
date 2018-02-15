@@ -20,7 +20,9 @@
 
 using namespace std;
 
-TSru::TSru( const char *serverRoot, int sruNum, const char *hostname ){
+TSru::TSru( const char *serverRoot, int sruNum, const char *hostname, TSocket* socket ){
+
+        fSocket = socket;
 
         fPedRefRun = 0;
 	ReadConfiguration();
@@ -346,11 +348,10 @@ TSru::TSru( const char *serverRoot, int sruNum, const char *hostname ){
 	reg->AddCommand( DCS_DIM_IMMEDIATE, 0 );
 	fCommand->push_back( reg );
 
-	// sprintf( buf, "%s/%s%02d/%s", serverRoot, DCS_DIM_SRU, fNumber, "COMMCHECK" );
-	// // dim address, reg address, type, TRU #, sequence, sequence cleaner
-	// reg = new TRegister( buf, 0x20, DCS_DIM_SPECIAL_TYPE, 41, fSequence, &fCleanFlag );
-	// reg->AddCommand( DCS_DIM_IMMEDIATE, 0 );
-	// fCommand->push_back( reg );
+	sprintf( buf, "%s/%s%02d/%s", serverRoot, DCS_DIM_SRU, fNumber, "COMMCHECK" );
+	reg = new TRegister( buf, 0x20, DCS_DIM_SPECIAL_TYPE, 41, fSequence, &fCleanFlag );
+	reg->AddCommand( DCS_DIM_IMMEDIATE, 0 );
+	fCommand->push_back( reg );
 
 
 	// ALTRO registers, broadcast
@@ -533,10 +534,74 @@ int TSru::IsOn( int device ){
   
   else if( maskH & ( 1 << ( device - 20 )))
     ison = 1;
+
+  int isResponsive = 1;
+
+  if(ison) { 
+    isResponsive = IsResponsive(device); 
+    if(!isResponsive) isResponsive = IsResponsive(device);
+    if(!isResponsive) isResponsive = IsResponsive(device);
+  }
   
-  return ison;
-  
+  return (ison && isResponsive);  
   // return 1; // BVP, 4.02.2015
+}
+
+int TSru::IsResponsive(int device)
+{
+  
+  vector<uint32_t> cmds, rbs;
+  int value = 0, isResponsive = 0;
+  
+  TDevice *dev = fDevice->at(device);
+  if(!dev) return 0;
+  
+  if(dev->IsTRU()) 
+    return 1; // TRU is always responsive
+  
+  int address = 0x20; // FEE card FW version
+  address = address | 0x80000000; // read
+  
+  cmds.clear();
+  rbs.clear();
+
+  //mask with SRU bit
+  if( device > 19 ){
+    cmds.push_back( 1 << (device - 20 ));
+    cmds.push_back( 0 );
+  }
+  else{
+    cmds.push_back( 0 );
+    cmds.push_back( 1 << device );
+  }
+  
+  // commands
+  cmds.push_back( address );
+  cmds.push_back( value );
+  
+  // send the commands
+  fSocket->Commands( &cmds );
+  
+  // setup the readback
+  cmds.clear();
+  cmds.push_back( 1 << 20 );
+  cmds.push_back( 0 );
+  cmds.push_back( 0x19 );
+  cmds.push_back( 40 );
+      
+  fSocket->ReadbackBuffers( &cmds, &rbs );
+
+  if(rbs.size()) {
+    if(rbs[2] == 0x5043) isResponsive = 1;
+    printf("Device: %d. rbs.size(): %d. rbs[2]: 0x%x. Responsive: %d\n",
+	   device,(unsigned int)rbs.size(),rbs[2],isResponsive);
+   
+    for( unsigned int i = 0; i < rbs.size(); i+=2 ){
+      printf( "0x%x : 0x%x\n", rbs[i], rbs[i+1] );
+    }
+  }
+  
+  return isResponsive;
 }
 
 // gets maks of enabled FEEs

@@ -37,9 +37,6 @@ TSequencer::TSequencer( const char *serverRoot, int sruNum, const char *ipAddr, 
 
 	fSequence = new vector<TSequencerCommand *>;
 	fSequence->clear();
-
-	// create the SRU object (with all lower electronics)
-	fSru = new TSru( serverRoot, sruNum, ipAddr );
 	
 	// create the network socket and connect it
 	fSocket = new TSocket();
@@ -51,6 +48,8 @@ TSequencer::TSequencer( const char *serverRoot, int sruNum, const char *ipAddr, 
 	if( fSocket->Connect() )
 		cout << "error: Socket connection problem!!" << endl;
 	
+	// create the SRU object (with all lower electronics)
+	fSru = new TSru( serverRoot, sruNum, ipAddr, fSocket );
 	
 	sprintf( buf, "%s/SRU%02d", serverRoot, sruNum );
 	
@@ -1070,20 +1069,21 @@ void TSequencer::CommCheck(){
 	int errcomfee, errbuffee, errwritefee;
 	
 	TSequencerCommand *command;
-	
+	printf("TSequencer::CommCheck() called.\n");
+
 	// make sure there is nothing pending in the buffers
 	ReadbackBuffers();
 	
-	command = new TSequencerCommand( DCS_DIM_INTERPRETED_TYPE, 40, -1, -1, 0x8d, 0, 0 );
+	command = new TSequencerCommand( DCS_DIM_SRU_TYPE, 40, -1, -1, 0x23, 0, 0 );
 	
 	// get current value
-	ReadbackRegistryDebug( 40, 0x8d, &saveval, &comretry, &bufretry );
+	ReadbackRegistryDebug( 40, 0x23, &saveval, &comretry, &bufretry );
 	
 	errcom = 0;
 	errbuf = 0;
 	errwrite = 0;
 	
-	for( i = 0; i < 50000; i++ ){
+	for( i = 0; i < 50; i++ ){
 		
 		// write to registry
 		command->fValue = i;
@@ -1091,7 +1091,7 @@ void TSequencer::CommCheck(){
 		command->SetDone( 0 );
 		
 		// get current value
-		ReadbackRegistryDebug( 40, 0x8d, &value, &comretry, &bufretry );
+		ReadbackRegistryDebug( 40, 0x23, &value, &comretry, &bufretry );
 		
 		if( value != i )
 			errwrite++;
@@ -1103,21 +1103,28 @@ void TSequencer::CommCheck(){
 	// put back the saved value
 	command->fValue = saveval;
 	ProcessCommand( command );
+
+	delete command;
 	
 	// do the same with FEE register
-	command->fAddress = 0x60;
-	command->fNumber = 0x1;
-	command->fMaskH = 0x0;
-	command->fMaskL = 0x2;
-	
+	// command->fAddress = 0x3;
+	// command->fNumber = 0x1;
+	// command->fMaskH = 0x0;
+	// command->fMaskL = 0x2;
+
+	int device = 2;
+	int address = 0x3;
+
+	command = new TSequencerCommand( DCS_DIM_FEE_TYPE, device, -1, -1, address, 0, 0 );	
+
 	// get current value
-	ReadbackRegistryDebug( 1, 0x60, &saveval, &comretry, &bufretry );
+	ReadbackRegistryDebug( device, address, &saveval, &comretry, &bufretry );
 	
 	errcomfee = 0;
 	errbuffee = 0;
 	errwritefee = 0;
 	
-	for( i = 0; i < 50000; i++ ){
+	for( i = 0; i < 50; i++ ){
 		
 		// write to registry
 		command->fValue = i;
@@ -1125,7 +1132,7 @@ void TSequencer::CommCheck(){
 		command->SetDone( 0 );
 		
 		// get current value
-		ReadbackRegistryDebug( 1, 0x60, &value, &comretry, &bufretry );
+		ReadbackRegistryDebug( device, address, &value, &comretry, &bufretry );
 		
 		if( value != i )
 			errwritefee++;
@@ -1139,21 +1146,18 @@ void TSequencer::CommCheck(){
 	ProcessCommand( command );
 
 	// print out percentages
-	if( DCS_DIM_DEBUG > 1 ){
-		cout << "Communication check SRU ---- " << endl;
-		cout << "Write errors: " << errwrite << endl;
-		cout << "Read command errors: " << errcom << endl;
-		cout << "Buffer read errors: " << errbuf << endl;
-		cout << "------" << endl;
-	}
+	cout << "Communication check SRU ---- " << endl;
+	cout << "Write errors: " << errwrite << endl;
+	cout << "Read command errors: " << errcom << endl;
+	cout << "Buffer read errors: " << errbuf << endl;
+	cout << "------" << endl;
+	
 	// print out percentages
-	if( DCS_DIM_DEBUG > 1 ){
-		cout << "Communication check FEE ---- " << endl;
-		cout << "Write errors: " << errwritefee << endl;
-		cout << "Read command errors: " << errcomfee << endl;
-		cout << "Buffer read errors: " << errbuffee << endl;
-		cout << "------" << endl;
-	}
+	cout << "Communication check FEE ---- " << endl;
+	cout << "Write errors: " << errwritefee << endl;
+	cout << "Read command errors: " << errcomfee << endl;
+	cout << "Buffer read errors: " << errbuffee << endl;
+	cout << "------" << endl;
 	
 	delete command;
 }
