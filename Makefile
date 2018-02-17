@@ -9,8 +9,8 @@ CXXFLAGS += -I./dim -I./dim/dim -I./
 
 all : $(bobjects)
 
-PhsFeeDim : TSru.o TDevice.o TFee.o TTru.o TSocket.o TSequencer.o TSequencerCommand.o TRegister.o TRegisterCommand.o TRegisterCalibrated.o TMassConfig.o TAltroCFG.o THvCFG.o TApdSettingsCheck.o TCardOnCFG.o TBusyFeeCFG.o TBusyTruCFG.o TBusySruCFG.o TPedCFG.o TBaseCFG.o TPing.o TDimCounter.o test.cxx
-	$(CXX) $(CXXFLAGS) -L./dim/ -ldim -lpthread -o $@ TSru.cxx TDevice.cxx TFee.cxx TTru.cxx TSocket.cxx TSequencer.cxx TSequencerCommand.cxx TRegister.cxx TRegisterCommand.cxx TRegisterCalibrated.cxx TMassConfig.o TAltroCFG.o THvCFG.o TApdSettingsCheck.o TCardOnCFG.o TBusyFeeCFG.o TBusyTruCFG.o TBusySruCFG.o TPedCFG.o TBaseCFG.o TPing.cxx TDimCounter.cxx test.cxx ./dim/libdim.a
+PhsFeeDim : TSru.o TDevice.o TFee.o TTru.o TSocket.o TSequencer.o TSequencerCommand.o TRegister.o TRegisterCommand.o TRegisterCalibrated.o TMassConfig.o TAltroCFG.o THvCFG.o TApdSettingsCheck.o TResponseCheck.o TCardOnCFG.o TBusyFeeCFG.o TBusyTruCFG.o TBusySruCFG.o TPedCFG.o TBaseCFG.o TPing.o TDimCounter.o test.cxx
+	$(CXX) $(CXXFLAGS) -L./dim/ -ldim -lpthread -o $@ TSru.cxx TDevice.cxx TFee.cxx TTru.cxx TSocket.cxx TSequencer.cxx TSequencerCommand.cxx TRegister.cxx TRegisterCommand.cxx TRegisterCalibrated.cxx TMassConfig.o TAltroCFG.o THvCFG.o TApdSettingsCheck.o TResponseCheck.o TCardOnCFG.o TBusyFeeCFG.o TBusyTruCFG.o TBusySruCFG.o TPedCFG.o TBaseCFG.o TPing.cxx TDimCounter.cxx test.cxx ./dim/libdim.a
 
 udp_server : 
 	$(CXX) $(CXXFLAGS) -o $@ udp_server.cxx
@@ -110,6 +110,9 @@ THvCFG.o : THvCFG.cxx THvCFG.hxx
 
 TApdSettingsCheck.o : TApdSettingsCheck.cxx TApdSettingsCheck.hxx
 	$(CXX) $(CFLAGS) -c TApdSettingsCheck.cxx
+
+TResponseCheck.o : TResponseCheck.cxx TResponseCheck.hxx 
+	$(CXX) $(CFLAGS) -c TResponseCheck.cxx
 
 TCardOnCFG.o : TCardOnCFG.cxx TCardOnCFG.hxx
 	$(CXX) $(CFLAGS) -c TCardOnCFG.cxx

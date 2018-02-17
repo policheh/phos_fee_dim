@@ -9,6 +9,7 @@
 #include "TRegisterCalibrated.hxx"
 #include "TBusyFeeCFG.hxx"
 #include "TApdSettingsCheck.hxx"
+#include "TResponseCheck.hxx"
 #include "globals.hxx"
 
 using namespace std;
@@ -107,11 +108,17 @@ TFee::TFee( const char *serverRoot, int truNum, int sruNum ) : TDevice( truNum, 
 	TBusyFeeCFG* busyCFG = new TBusyFeeCFG( buf, fNumber, fSequence ); busyCFG->SetRefresh(30);
 	fConfigMonitor.push_back( busyCFG );
 
-	// // APD settings check
+	// APD settings check
 	sprintf( buf, "%s/%s%02d/%s", serverRoot, DCS_DIM_FEE, fNumber, "APDCHECK" );
 	TApdSettingsCheck* apdCheck = new TApdSettingsCheck(buf,fSequence,fNumber,GetSRUNumber());
 	apdCheck->SetRefresh(30);
 	fConfigMonitor.push_back(apdCheck);
+    
+    // Responsiveness check
+    sprintf( buf, "%s/%s%02d/%s", serverRoot, DCS_DIM_FEE, fNumber, "IS_RESPONSIVE" );
+    TResponseCheck* isResponse = new TResponseCheck(buf,fSequence,this);
+    isResponse->SetRefresh(30);
+    fConfigMonitor.push_back(isResponse);
 	
 	// scan registers to reg array
 	for( i = 0; i < fConfig->size(); i++ ){

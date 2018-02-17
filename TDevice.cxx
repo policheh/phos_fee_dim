@@ -30,7 +30,9 @@ TDevice::TDevice( int number, int sru ){
 
 	// allocate command sequence and register arrays
 	fSequence = new vector<TSequencerCommand *>;
+    
 	fCleanFlag = 0;
+    fResponseFlag = 0;
 	
 	fSruNumber = sru;
 }
