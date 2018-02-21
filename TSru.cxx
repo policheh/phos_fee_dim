@@ -543,7 +543,7 @@ int TSru::IsOn( int device ){
         if(!isResponsive) isResponsive = IsResponsive(device);
     }
     
-    return (ison && isResponsive);
+    return ison;
     // return 1; // BVP, 4.02.2015
 }
 
