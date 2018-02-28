@@ -1,4 +1,4 @@
-bobjects = PhsFeeDim udp_server srucmd dim_command countd feed client2 read1 setPedestals setHV setRun ResetFEE ResetTRU ResetFEE2 ResetHV CSPmask ConfigureAllFEE buildPedestals
+bobjects = PhsFeeDim udp_server srucmd dim_command countd feed client2 read1 setPedestals setHV setRun ResetFEE ResetTRU ResetFEE2 ResetHV CSPmask ConfigureAllFEE buildPedestals buildBadMaps
 
 CC = gcc
 CXX = g++
@@ -61,10 +61,13 @@ ConfigureAllFEE : ConfigureAllFEE.cxx
 	$(CXX) $(CXXFLAGS) -L./dim -ldim -lpthread -o $@ ConfigureAllFEE.cxx ./dim/libdim.a
 
 AliPHOSFEEMapRun2.o : AliPHOSFEEMapRun2.cxx AliPHOSFEEMapRun2.h
-	$(CXX) -L$(ROOTLIB) -lCore $(CXXFLAGS) -I/usr/include/root -I$(ROOTSYS)/include -c AliPHOSFEEMapRun2.cxx
+	$(CXX) $(CXXFLAGS) -c AliPHOSFEEMapRun2.cxx
 
 buildPedestals : buildPedestals.cxx AliPHOSFEEMapRun2.o CreatePedestalTable.C
 	$(CXX) -L$(ROOTLIB) -lCore -lCint -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lTree -lRint -lPostscript -lMatrix -lMathCore -lThread -pthread -lm -ldl -rdynamic $(CXXFLAGS) -I/usr/include/root -I$(ROOTSYS)/include -L./dim -ldim -lpthread -o $@ buildPedestals.cxx AliPHOSFEEMapRun2.o ./dim/libdim.a
+
+buildBadMaps : buildBadMaps.cxx AliPHOSFEEMapRun2.o
+	$(CXX) -L$(ROOTLIB) -lCore -lCint -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lTree -lRint -lPostscript -lMatrix -lMathCore -lThread -pthread -lm -ldl -rdynamic $(CXXFLAGS) -I/usr/include/root -I$(ROOTSYS)/include -lpthread -o $@ buildBadMaps.cxx AliPHOSFEEMapRun2.o
 
 srucmd : TSocket.o
 	$(CXX) $(CXXFLAGS) -o $@ TSocket.cxx srucmd.cxx
