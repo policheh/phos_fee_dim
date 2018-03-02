@@ -1,9 +1,12 @@
 #include <fstream>
 #include <sstream>
+#include <iostream>
 #include <string>
 
 #include "TH2I.h"
 #include "TFile.h"
+
+#include <dic.hxx>
 
 #include "AliPHOSFEEMapRun2.h"
 using namespace std;
@@ -125,6 +128,28 @@ void buildBadMaps()
 }
 
 int main(int argc, char* argv[]) {
-    buildBadMaps();
+    
+    if(argc>1) { buildBadMaps(); return 0; }
+    else {
+        
+        cout << "  ==> Running in infinite loop.." << endl;
+        int oldrun = -1;
+        
+        while(1) {
+            DimCurrentInfo lastRun("/LOGBOOK/SUBSCRIBE/DAQ_EOR_PHS",-1);
+            int newrun =  lastRun.getInt();
+            
+            if(newrun != oldrun) {
+
+                printf("New run: %d\n",newrun);
+                buildBadMaps();
+
+                //put file /tmp/BadMap.root on the DCS FXS here
+                oldrun = newrun;
+            }
+            
+            sleep(1);
+        }
+    }
 }
 

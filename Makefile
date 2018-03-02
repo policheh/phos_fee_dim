@@ -67,7 +67,7 @@ buildPedestals : buildPedestals.cxx AliPHOSFEEMapRun2.o CreatePedestalTable.C
 	$(CXX) -L$(ROOTLIB) -lCore -lCint -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lTree -lRint -lPostscript -lMatrix -lMathCore -lThread -pthread -lm -ldl -rdynamic $(CXXFLAGS) -I/usr/include/root -I$(ROOTSYS)/include -L./dim -ldim -lpthread -o $@ buildPedestals.cxx AliPHOSFEEMapRun2.o ./dim/libdim.a
 
 buildBadMaps : buildBadMaps.cxx AliPHOSFEEMapRun2.o
-	$(CXX) -L$(ROOTLIB) -lCore -lCint -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lTree -lRint -lPostscript -lMatrix -lMathCore -lThread -pthread -lm -ldl -rdynamic $(CXXFLAGS) -I/usr/include/root -I$(ROOTSYS)/include -lpthread -o $@ buildBadMaps.cxx AliPHOSFEEMapRun2.o
+	$(CXX) -L$(ROOTLIB) -lCore -lCint -lRIO -lNet -lHist -lGraf -lGraf3d -lGpad -lTree -lRint -lPostscript -lMatrix -lMathCore -lThread -pthread -lm -ldl -rdynamic $(CXXFLAGS) -I/usr/include/root -I$(ROOTSYS)/include -L./dim -ldim -lpthread -o $@ buildBadMaps.cxx AliPHOSFEEMapRun2.o ./dim/libdim.a
 
 srucmd : TSocket.o
 	$(CXX) $(CXXFLAGS) -o $@ TSocket.cxx srucmd.cxx
