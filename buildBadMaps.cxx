@@ -21,11 +21,9 @@ void streamCells(int module, int sruID, int feeCard, string option, TH2I* badmap
         for(int cellz=0; cellz<56; cellz++) { // cellz should be [0,55]
             if (map.CellToFEEID(cellz) == feeCard && map.CellToSRUID(cellx) == sruID) {
                 if(option=="good") {
-                    printf("Cell [%d,%d] of FEE%.2d SM%d is good.\n",cellx,cellz,feeCard,module);
                     badmap->SetBinContent(cellx+1,cellz+1,0); // mark cell as good
                 }
                 else {
-                    printf("Cell [%d,%d] of FEE%.2d SM%d is bad.\n",cellx,cellz,feeCard,module);
                     badmap->SetBinContent(cellx+1,cellz+1,1); // mark cell as bad
                 }
             }
@@ -40,7 +38,6 @@ void streamBadCSPCell(int module, int sruID, int feeCard, int badCSP, TH2I* badm
     for(int cellx=0; cellx<64; cellx++) { // cellx should be [0,63]
         for(int cellz=0; cellz<56; cellz++) { // cellz should be [0,55]
             if (map.CellToFEEID(cellz) == feeCard && map.CellToCSPID(module,cellx,cellz) == badCSP && map.CellToSRUID(cellx) == sruID) {
-                printf("Cell [%d,%d] of FEE%.2d CSP%d SM%d is bad.\n",cellx,cellz,feeCard,badCSP,module);
                 badmap->SetBinContent(cellx+1,cellz+1,1); // mark cell as bad
             }
         }
@@ -133,18 +130,24 @@ int main(int argc, char* argv[]) {
     else {
         
         cout << "  ==> Running in infinite loop.." << endl;
+        
         int oldrun = -1;
+        char cmd[255];
         
         while(1) {
             DimCurrentInfo lastRun("/LOGBOOK/SUBSCRIBE/DAQ_EOR_PHS",-1);
             int newrun =  lastRun.getInt();
             
             if(newrun != oldrun) {
-
+                
                 printf("New run: %d\n",newrun);
                 buildBadMaps();
-
-                //put file /tmp/BadMap.root on the DCS FXS here
+                
+                //put file /tmp/BadMap.root on the DCS FXS
+                sprintf(cmd,"register.sh %d PHS BadMap /tmp/BadMap.root",newrun);
+                printf("Running command %s\n",cmd);
+                system(cmd);
+                
                 oldrun = newrun;
             }
             
