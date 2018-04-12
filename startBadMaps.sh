@@ -5,6 +5,7 @@ cd $FEEDIR
 
 export DIM_DNS_NODE=aldaqecs.cern.ch
 export LD_LIBRARY_PATH=/usr/lib64/root
+export PATH=/home/phs/.DCS_scripts:$PATH
 
 PID=`pgrep -f buildBadMaps`
 
