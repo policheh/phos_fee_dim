@@ -153,6 +153,12 @@ private:
   void writeNSamples(int dtc, vector<TSequencerCommand*> *sequence, int value);
   void writeNPreSamples(int dtc, vector<TSequencerCommand*> *sequence, int value);
   void CreateTRU(char* buf, int position);
+  void CreateFEEs(char* buf);
+  void CreateCardOnCFGServices(const char *serverRoot, char* buf);
+  void WriteAltroRegisters(vector<TSequencerCommand*> *sequence, bool zs, int offset, int threshold, int nsampl, int npresampl, int lgsup);
+  void LoadAPDsettingsDefault(vector<TSequencerCommand*> *sequence, char* prefix, int mod, int part);
+  void LoadPedestalsDefault(vector<TSequencerCommand*> *sequence, int mod, int part);
+  void loadPedestalsOfOneCard(vector<TSequencerCommand*> *sequence, int dtc, int mod, int part);
 };
 
 #endif

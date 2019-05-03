@@ -34,7 +34,6 @@ TSru::TSru( const char *serverRoot, int sruNum, const char *hostname, TSocket* s
     unsigned int i;
     string str;
     
-    TFee *fee;
     TRegister *reg;
     
     vector<int> address;
@@ -72,19 +71,7 @@ TSru::TSru( const char *serverRoot, int sruNum, const char *hostname, TSocket* s
     sprintf( buf, "%s/%s%02d", serverRoot, DCS_DIM_SRU, sruNum );
     
     // create the FEE card objects
-    for(i=2; i<=15; i++){
-        fee = new TFee( buf, i, sruNum );
-        fee->SetAltro( fAltro );
-        fFee->push_back( fee );
-        (*fDevice)[i] = fee;
-    }
-    
-    for(i=21; i<=34; i++){
-        fee = new TFee( buf, i, sruNum );
-        fee->SetAltro( fAltro );
-        fFee->push_back( fee );
-        (*fDevice)[i] = fee;
-    }
+    CreateFEEs(buf);
     
     // create TRUs
     CreateTRU(buf,0);
@@ -420,18 +407,7 @@ TSru::TSru( const char *serverRoot, int sruNum, const char *hostname, TSocket* s
     //fPedCFGService = new DimService(buf,fPedCFG);
     // fPedCFGService->SetPedReferenceRun(fPedRefRun);
     
-    for (int i=1; i<=15; i++) {
-        sprintf( buf, "%s/%s%02d/FEE%02d/ISON", serverRoot, DCS_DIM_SRU, fNumber,i);
-        TCardOnCFG* cc = new TCardOnCFG(buf,i,fSequence); cc->SetRefresh(4);
-        fConfigMonitor.push_back(cc);
-    }
-    
-    for (int i=21; i<=34; i++) {
-        sprintf( buf, "%s/%s%02d/FEE%02d/ISON", serverRoot, DCS_DIM_SRU, fNumber,i);
-        TCardOnCFG* cc = new TCardOnCFG(buf,i,fSequence); cc->SetRefresh(4);
-        fConfigMonitor.push_back(cc);
-    }
-    
+    CreateCardOnCFGServices(serverRoot, buf);    
     UpdateRegisterMasks();
 }
 
@@ -1137,22 +1113,71 @@ void TSru::RdoTrgConfigBuildSequence( vector<TSequencerCommand*> *sequence ){
 
 // Reset fee
 void TSru::FeeResetBuildSequence( vector<TSequencerCommand*> *sequence ){
+  
+    int mod,part;
     
+    if(fNumber==1) { mod=1; part=2; } // M1-2
+    if(fNumber==2) { mod=1; part=3; } // M1-3
+    if(fNumber==3) { mod=2; part=0; } // M2-0
+    if(fNumber==4) { mod=2; part=1; } // M2-1
+    if(fNumber==5) { mod=2; part=2; } // M2-2
+    if(fNumber==6) { mod=2; part=3; } // M2-3
+    if(fNumber==7) { mod=3; part=0; } // M3-0
+    if(fNumber==8) { mod=3; part=1; } // M3-1
+    if(fNumber==9) { mod=3; part=2; } // M3-2
+    if(fNumber==10){ mod=3; part=3; } // M3-3
+    if(fNumber==11){ mod=4; part=0; } // M4-0
+    if(fNumber==12){ mod=4; part=1; } // M4-1
+    if(fNumber==13){ mod=4; part=2; } // M4-2
+    if(fNumber==14){ mod=4; part=3; } // M4-3
+    
+    char filename[80];
+    sprintf(filename,"M%d-%d/DTCmap.dat",mod,part);
+
     TSequencerCommand *command;
+    ifstream f;
     
-    for(int i=2; i<=14; i++) {
+    f.open(filename,ios::in);
+    if(f.is_open()) {
+
+      printf("Reading DTC -> PHYADDR mapping from file %s..\n", filename);
+      
+      int dtc, addr;
+      char label1[80], label2[80];
+
+      f >> label1 >> label2;
+
+      while(!f.eof()) {
+	f >> dtc >> addr;
+	command = new TSequencerCommand( 2, dtc, -1, -1, 0x3, addr, 0 );
+	sequence->push_back( command );
+	printf("%s %d, %s 0x%d\n", label1, dtc, label2, addr);
+      }
+    }
+    
+    else {
+
+      ofstream g;
+      g.open(filename,ios::out);
+    
+      g<<"DTC_link   "<<"HW_address"<<endl;
+
+      for(int i=2; i<=14; i++) {
         command = new TSequencerCommand( 2, i, -1, -1, 0x3, i, 0 );
         sequence->push_back( command );
-    }
+	g<< i <<"   " << i <<endl;
+      }
     
-    command = new TSequencerCommand( 2, 15, -1, -1, 0x3, 0x1, 0 );
-    sequence->push_back( command );
+      command = new TSequencerCommand( 2, 15, -1, -1, 0x3, 0x1, 0 );
+      sequence->push_back( command );
+      g<< 15 <<"   " << 1 <<endl;
     
-    for(int i=21; i<=34; i++) {
+      for(int i=21; i<=34; i++) {
         command = new TSequencerCommand( 2, i, -1, -1, 0x3, i-20+16, 0 );
         sequence->push_back( command );
-    }
-    
+	g<< i <<"   "<< i-20+16 <<endl;
+      }
+    }    
     
 }
 
@@ -1216,13 +1241,8 @@ void TSru::AltroConfigBuildSequence( vector<TSequencerCommand*> *sequence, int n
     command = new TSequencerCommand( DCS_DIM_INTERPRETED_TYPE, 40, -1, -1, 0x41, 0xE4, 0);
     sequence->push_back( command );
     
-    for(int i=2; i<=15; i++) {
-        writeALTROregs(i,sequence,zs,off,thr,nsampl,npresampl,lgsup);
-    }
+    WriteAltroRegisters(sequence,zs,off,thr,nsampl,npresampl,lgsup);
     
-    for(int i=21; i<=34; i++) {
-        writeALTROregs(i,sequence,zs,off,thr,nsampl,npresampl,lgsup);
-    }
 }
 
 void TSru::writeALTROregs(int dtc, vector<TSequencerCommand*> *sequence, bool zs, int offset, int threshold, int nsampl, int npresampl, int lgsup)
@@ -1366,9 +1386,7 @@ void TSru::HvLoadAllBuildSequence( vector<TSequencerCommand*> *sequence, int num
     // If 0 is given to HVLOAD service, or file does not exists,
     // read "default" settings from directory APDsettings.
     
-    TSequencerCommand *command;
-    
-    int addr,bias;
+    TSequencerCommand *command;    
     int mod,part;
     
     if(fNumber==1) { mod=1; part=2; } // M1-2
@@ -1386,19 +1404,33 @@ void TSru::HvLoadAllBuildSequence( vector<TSequencerCommand*> *sequence, int num
     if(fNumber==13){ mod=4; part=2; } // M4-2
     if(fNumber==14){ mod=4; part=3; } // M4-3
     
-    char prefix[80],filename[80],line[1000];
+    char prefix[80], line[1000];
     FILE* fp;
     
     if(number) sprintf(prefix,"APDsettings_%d",number);
     else sprintf(prefix,"APDsettings");
-    
-    for(int i=2; i<=15; i++) {
-        
-        sprintf(filename,"%s/APD_M%d-%d_FEE%.2d.dat",prefix,mod,part,i);
+
+    char filename[80];
+    sprintf(filename,"M%d-%d/DTCmap.dat",mod,part);
+
+    ifstream f;
+    f.open(filename,ios::in);
+
+    if(f.is_open()) {
+       
+      int dtc,addr,bias;
+      char label1[80], label2[80];
+
+      f >> label1 >> label2;
+
+      while(!f.eof()) {
+	f >> dtc >> addr;
+
+        sprintf(filename,"%s/APD_M%d-%d_FEE%.2d.dat",prefix,mod,part,dtc);
         fp = fopen(filename,"r");
         
         if(!fp) {
-            sprintf(filename,"APDsettings/APD_M%d-%d_FEE%.2d.dat",mod,part,i);
+            sprintf(filename,"APDsettings/APD_M%d-%d_FEE%.2d.dat",mod,part,dtc);
             fp = fopen(filename,"r");
         }
         
@@ -1408,42 +1440,19 @@ void TSru::HvLoadAllBuildSequence( vector<TSequencerCommand*> *sequence, int num
             sscanf(line,"%x %x",&addr,&bias);
             
             printf("Address: %x, bias: %x\n",addr,bias);
-            command = new TSequencerCommand( 2, i, -1, -1, addr, bias, 100000 );
+            command = new TSequencerCommand( 2, dtc, -1, -1, addr, bias, 100000 );
             sequence->push_back( command );
         }
         
         //Apply changes with 1 sec delay per card!
-        command = new TSequencerCommand( 2, i, -1, -1, 0x1e, 0x0, 100000 );
+        command = new TSequencerCommand( 2, dtc, -1, -1, 0x1e, 0x0, 100000 );
         sequence->push_back( command );
+      }
     }
     
-    for(int i=21; i<=34; i++) {
-        
-        sprintf(filename,"%s/APD_M%d-%d_FEE%.2d.dat",prefix,mod,part,i);
-        fp = fopen(filename,"r");
-        
-        if(!fp) {
-            sprintf(filename,"APDsettings/APD_M%d-%d_FEE%.2d.dat",mod,part,i);
-            fp = fopen(filename,"r");
-        }
-        
-        while(fgets(line,sizeof(line),fp)){
-            
-            if (*line == '#') continue;
-            sscanf(line,"%x %x",&addr,&bias);
-            
-            printf("Address: %x, bias: %x\n",addr,bias);
-            command = new TSequencerCommand( 2, i, -1, -1, addr, bias, 100000 );
-            sequence->push_back( command );
-        }
-        
-        //Apply changes with 1 sec delay per card!
-        command = new TSequencerCommand( 2, i, -1, -1, 0x1e, 0x0, 100000 );
-        sequence->push_back( command );
-    }
+    else
+      LoadAPDsettingsDefault(sequence, prefix, mod, part);
     
-    // sprintf(fHvCFG,"PHYS");
-    // fHvCFGService->updateService();
 }
 
 void TSru::PedestalBuildSequence( vector<TSequencerCommand*> *sequence ){
@@ -1467,81 +1476,27 @@ void TSru::PedestalBuildSequence( vector<TSequencerCommand*> *sequence ){
     if(fNumber==13){ mod=4; part=2; } // M4-2
     if(fNumber==14){ mod=4; part=3; } // M4-3
     
-    char filename[255];
-    TSequencerCommand *command;
-    
-    int  addr[255];
-    char sreg[255],tmp[255];
-    
-    int   altro,channel,ped;
-    float pd;
-    
-    for(int i=2; i<=15; i++) {
-        
-        sprintf(filename,"Pedestal/%d/Pedestal_%d_SRUM%d-%d_DTC%d.txt",fPedRefRun,fPedRefRun,mod,part,i);
-        ifstream f;
-        
-        f.open(filename,ios::in);
-        printf("Reading from %s\n",filename);
-        
-        while(!f.eof()){
-            
-            f>>tmp>>altro>>tmp>>channel>>tmp>>pd;
-            ped = (int)pd;
-            printf("ALTRO: %d CHANNEL: %d PED: %d\n",altro,channel,ped);
-            
-            int FEC =  (int)i%20;
-            int branch = (int)i/20;
-            
-            if(i==15) {
-                FEC =  (int)1%20;
-                branch = (int)1/20;
-            }
-            
-            int GTLaddr = FEC + branch*16;
-            int b = altro*2; // # ALTRO shifted up 1 bit
-            int d = channel*2 + b*16; // channnel shifted up 1 bit + ALTRO-bit info
-            
-            sprintf(sreg,"400%02x%02x6",GTLaddr,d);
-            charToHex(sreg,addr);
-            
-            command = new TSequencerCommand( 2, i, -1, -1, addr[0], ped, 1000 );
-            sequence->push_back( command );
-        }
+    char filename[255];    
+    sprintf(filename,"M%d-%d/DTCmap.dat",mod,part);
+
+    ifstream f;
+    f.open(filename,ios::in);
+
+    if(f.is_open()) {
+       
+      int dtc, addr;
+      char label1[80], label2[80];
+
+      f >> label1 >> label2;
+
+      while(!f.eof()) {
+	f >> dtc >> addr;
+	loadPedestalsOfOneCard(sequence, dtc, mod, part);
+      }
     }
-    
-    
-    for(int i=21; i<=34; i++) {
-        
-        sprintf(filename,"Pedestal/%d/Pedestal_%d_SRUM%d-%d_DTC%d.txt",fPedRefRun,fPedRefRun,mod,part,i);
-        ifstream f;
-        
-        f.open(filename,ios::in);
-        printf("Reading from %s\n",filename);
-        
-        while(!f.eof()){
-            
-            f>>tmp>>altro>>tmp>>channel>>tmp>>pd;
-            ped = (int)pd;
-            printf("ALTRO: %d CHANNEL: %d PED: %d\n",altro,channel,ped);
-            
-            int FEC =  (int)i%20;
-            int branch = (int)i/20;
-            int GTLaddr = FEC + branch*16;
-            
-            int b = altro*2; // # ALTRO shifted up 1 bit
-            int d = channel*2 + b*16; // channnel shifted up 1 bit + ALTRO-bit info
-            
-            sprintf(sreg,"400%02x%02x6",GTLaddr,d);
-            charToHex(sreg,addr);
-            
-            command = new TSequencerCommand( 2, i, -1, -1, addr[0], ped, 1000 );
-            sequence->push_back( command );
-        }
-    }
-    
-    //sprintf(fPedCFG,"1");
-    //fPedCFGService->updateService();
+
+    else
+      LoadPedestalsDefault(sequence, mod, part);    
 }
 
 void TSru::FeeOffBuildSequence( vector<TSequencerCommand*> *sequence )
@@ -1812,15 +1767,53 @@ void TSru::ProcessZSOn( int value, vector<TSequencerCommand*> *sequence )
 {
     // value=1 => ZS on
     // value=0 => ZS off
+  
+    int mod, part;
     
-    for(int i=1; i<=14; i++) {
-        writeZSOn(i,sequence,value);
+    if(fNumber==1) { mod=1; part=2; } // M1-2
+    if(fNumber==2) { mod=1; part=3; } // M1-3
+    if(fNumber==3) { mod=2; part=0; } // M2-0
+    if(fNumber==4) { mod=2; part=1; } // M2-1
+    if(fNumber==5) { mod=2; part=2; } // M2-2
+    if(fNumber==6) { mod=2; part=3; } // M2-3
+    if(fNumber==7) { mod=3; part=0; } // M3-0
+    if(fNumber==8) { mod=3; part=1; } // M3-1
+    if(fNumber==9) { mod=3; part=2; } // M3-2
+    if(fNumber==10){ mod=3; part=3; } // M3-3
+    if(fNumber==11){ mod=4; part=0; } // M4-0
+    if(fNumber==12){ mod=4; part=1; } // M4-1
+    if(fNumber==13){ mod=4; part=2; } // M4-2
+    if(fNumber==14){ mod=4; part=3; } // M4-3
+    
+    char filename[80];
+    sprintf(filename,"M%d-%d/DTCmap.dat",mod,part);
+
+    ifstream f;
+    f.open(filename,ios::in);
+
+    if(f.is_open()) {
+       
+      int dtc, addr;
+      char label1[80], label2[80];
+
+      f >> label1 >> label2;
+
+      while(!f.eof()) {
+	f >> dtc >> addr;
+	writeZSOn(dtc,sequence,value);
+      }
     }
-    
-    for(int i=21; i<=34; i++) {
+
+    else { // default
+      for(int i=1; i<=14; i++) {
         writeZSOn(i,sequence,value);
-    }
+      }
     
+      for(int i=21; i<=34; i++) {
+        writeZSOn(i,sequence,value);
+      }
+    }
+
 }
 
 void TSru::writeZSOn(int dtc, vector<TSequencerCommand*> *sequence, int value)
@@ -1857,15 +1850,53 @@ void TSru::ProcessZSOffset( int value, vector<TSequencerCommand*> *sequence )
 {
     
     fZSOffset = value;
+
+    int mod, part;
     
-    for(int i=1; i<=14; i++) {
-        writeZSOffset(i,sequence,value);
+    if(fNumber==1) { mod=1; part=2; } // M1-2
+    if(fNumber==2) { mod=1; part=3; } // M1-3
+    if(fNumber==3) { mod=2; part=0; } // M2-0
+    if(fNumber==4) { mod=2; part=1; } // M2-1
+    if(fNumber==5) { mod=2; part=2; } // M2-2
+    if(fNumber==6) { mod=2; part=3; } // M2-3
+    if(fNumber==7) { mod=3; part=0; } // M3-0
+    if(fNumber==8) { mod=3; part=1; } // M3-1
+    if(fNumber==9) { mod=3; part=2; } // M3-2
+    if(fNumber==10){ mod=3; part=3; } // M3-3
+    if(fNumber==11){ mod=4; part=0; } // M4-0
+    if(fNumber==12){ mod=4; part=1; } // M4-1
+    if(fNumber==13){ mod=4; part=2; } // M4-2
+    if(fNumber==14){ mod=4; part=3; } // M4-3
+    
+    char filename[80];
+    sprintf(filename,"M%d-%d/DTCmap.dat",mod,part);
+
+    ifstream f;
+    f.open(filename,ios::in);
+
+    if(f.is_open()) {
+       
+      int dtc, addr;
+      char label1[80], label2[80];
+
+      f >> label1 >> label2;
+
+      while(!f.eof()) {
+	f >> dtc >> addr;
+	writeZSOffset(dtc,sequence,value);
+      }
     }
-    
-    for(int i=21; i<=34; i++) {
+
+    else { // default    
+      for(int i=1; i<=14; i++) {
         writeZSOffset(i,sequence,value);
-    }
+      }
     
+      for(int i=21; i<=34; i++) {
+        writeZSOffset(i,sequence,value);
+      }
+    }
+
 }
 
 void TSru::writeZSOffset(int dtc, vector<TSequencerCommand*> *sequence, int value)
@@ -1902,28 +1933,104 @@ void TSru::ProcessZSThr( int value, vector<TSequencerCommand*> *sequence )
 {
     
     fZSThr = value;
+
+    int mod, part;
     
-    for(int i=1; i<=14; i++) {
-        writeZSOffset(i,sequence,value);
+    if(fNumber==1) { mod=1; part=2; } // M1-2
+    if(fNumber==2) { mod=1; part=3; } // M1-3
+    if(fNumber==3) { mod=2; part=0; } // M2-0
+    if(fNumber==4) { mod=2; part=1; } // M2-1
+    if(fNumber==5) { mod=2; part=2; } // M2-2
+    if(fNumber==6) { mod=2; part=3; } // M2-3
+    if(fNumber==7) { mod=3; part=0; } // M3-0
+    if(fNumber==8) { mod=3; part=1; } // M3-1
+    if(fNumber==9) { mod=3; part=2; } // M3-2
+    if(fNumber==10){ mod=3; part=3; } // M3-3
+    if(fNumber==11){ mod=4; part=0; } // M4-0
+    if(fNumber==12){ mod=4; part=1; } // M4-1
+    if(fNumber==13){ mod=4; part=2; } // M4-2
+    if(fNumber==14){ mod=4; part=3; } // M4-3
+    
+    char filename[80];
+    sprintf(filename,"M%d-%d/DTCmap.dat",mod,part);
+
+    ifstream f;
+    f.open(filename,ios::in);
+
+    if(f.is_open()) {
+       
+      int dtc, addr;
+      char label1[80], label2[80];
+
+      f >> label1 >> label2;
+
+      while(!f.eof()) {
+	f >> dtc >> addr;
+	writeZSOffset(dtc,sequence,value);
+      }
     }
-    
-    for(int i=21; i<=34; i++) {
+
+    else { // default
+      for(int i=1; i<=14; i++) {
         writeZSOffset(i,sequence,value);
-    }
+      }
     
+      for(int i=21; i<=34; i++) {
+        writeZSOffset(i,sequence,value);
+      }
+    }
+
 }
 
 void TSru::ProcessNSamples( int value, vector<TSequencerCommand*> *sequence )
 {
+
+    int mod, part;
     
-    for(int i=1; i<=14; i++) {
-        writeNSamples(i,sequence,value);
+    if(fNumber==1) { mod=1; part=2; } // M1-2
+    if(fNumber==2) { mod=1; part=3; } // M1-3
+    if(fNumber==3) { mod=2; part=0; } // M2-0
+    if(fNumber==4) { mod=2; part=1; } // M2-1
+    if(fNumber==5) { mod=2; part=2; } // M2-2
+    if(fNumber==6) { mod=2; part=3; } // M2-3
+    if(fNumber==7) { mod=3; part=0; } // M3-0
+    if(fNumber==8) { mod=3; part=1; } // M3-1
+    if(fNumber==9) { mod=3; part=2; } // M3-2
+    if(fNumber==10){ mod=3; part=3; } // M3-3
+    if(fNumber==11){ mod=4; part=0; } // M4-0
+    if(fNumber==12){ mod=4; part=1; } // M4-1
+    if(fNumber==13){ mod=4; part=2; } // M4-2
+    if(fNumber==14){ mod=4; part=3; } // M4-3
+    
+    char filename[80];
+    sprintf(filename,"M%d-%d/DTCmap.dat",mod,part);
+
+    ifstream f;
+    f.open(filename,ios::in);
+
+    if(f.is_open()) {
+       
+      int dtc, addr;
+      char label1[80], label2[80];
+
+      f >> label1 >> label2;
+
+      while(!f.eof()) {
+	f >> dtc >> addr;
+	writeNSamples(dtc,sequence,value);
+      }
     }
-    
-    for(int i=21; i<=34; i++) {
+
+    else { // default
+      for(int i=1; i<=14; i++) {
         writeNSamples(i,sequence,value);
-    }
+      }
     
+      for(int i=21; i<=34; i++) {
+        writeNSamples(i,sequence,value);
+      }
+    }
+
 }
 
 void TSru::writeNSamples(int dtc, vector<TSequencerCommand*> *sequence, int value)
@@ -1956,15 +2063,53 @@ void TSru::writeNSamples(int dtc, vector<TSequencerCommand*> *sequence, int valu
 
 void TSru::ProcessNPreSamples( int value, vector<TSequencerCommand*> *sequence )
 {
+
+    int mod, part;
     
-    for(int i=1; i<=14; i++) {
-        writeNPreSamples(i,sequence,value);
+    if(fNumber==1) { mod=1; part=2; } // M1-2
+    if(fNumber==2) { mod=1; part=3; } // M1-3
+    if(fNumber==3) { mod=2; part=0; } // M2-0
+    if(fNumber==4) { mod=2; part=1; } // M2-1
+    if(fNumber==5) { mod=2; part=2; } // M2-2
+    if(fNumber==6) { mod=2; part=3; } // M2-3
+    if(fNumber==7) { mod=3; part=0; } // M3-0
+    if(fNumber==8) { mod=3; part=1; } // M3-1
+    if(fNumber==9) { mod=3; part=2; } // M3-2
+    if(fNumber==10){ mod=3; part=3; } // M3-3
+    if(fNumber==11){ mod=4; part=0; } // M4-0
+    if(fNumber==12){ mod=4; part=1; } // M4-1
+    if(fNumber==13){ mod=4; part=2; } // M4-2
+    if(fNumber==14){ mod=4; part=3; } // M4-3
+    
+    char filename[80];
+    sprintf(filename,"M%d-%d/DTCmap.dat",mod,part);
+
+    ifstream f;
+    f.open(filename,ios::in);
+
+    if(f.is_open()) {
+       
+      int dtc, addr;
+      char label1[80], label2[80];
+
+      f >> label1 >> label2;
+
+      while(!f.eof()) {
+	f >> dtc >> addr;
+	writeNPreSamples(dtc,sequence,value);
+      }
     }
-    
-    for(int i=21; i<=34; i++) {
+
+    else { //default
+      for(int i=1; i<=14; i++) {
         writeNPreSamples(i,sequence,value);
-    }
+      }
     
+      for(int i=21; i<=34; i++) {
+        writeNPreSamples(i,sequence,value);
+      }
+    }
+
 }
 
 void TSru::writeNPreSamples(int dtc, vector<TSequencerCommand*> *sequence, int value)
@@ -2125,6 +2270,360 @@ bool TSru::CreateReadoutMask(int &maskL, int &maskH)
     // maskH = (1<<0) ^ maskH;
     
     return true;
+}
+
+void TSru::WriteAltroRegisters(vector<TSequencerCommand*> *sequence, bool zs, int offset, int threshold, int nsampl, int npresampl, int lgsup)
+{
+
+    int mod, part;
+    
+    if(fNumber==1) { mod=1; part=2; } // M1-2
+    if(fNumber==2) { mod=1; part=3; } // M1-3
+    if(fNumber==3) { mod=2; part=0; } // M2-0
+    if(fNumber==4) { mod=2; part=1; } // M2-1
+    if(fNumber==5) { mod=2; part=2; } // M2-2
+    if(fNumber==6) { mod=2; part=3; } // M2-3
+    if(fNumber==7) { mod=3; part=0; } // M3-0
+    if(fNumber==8) { mod=3; part=1; } // M3-1
+    if(fNumber==9) { mod=3; part=2; } // M3-2
+    if(fNumber==10){ mod=3; part=3; } // M3-3
+    if(fNumber==11){ mod=4; part=0; } // M4-0
+    if(fNumber==12){ mod=4; part=1; } // M4-1
+    if(fNumber==13){ mod=4; part=2; } // M4-2
+    if(fNumber==14){ mod=4; part=3; } // M4-3
+    
+    char filename[80];
+    sprintf(filename,"M%d-%d/DTCmap.dat",mod,part);
+
+    ifstream f;
+    f.open(filename,ios::in);
+
+    if(f.is_open()) {
+       
+      int dtc, addr;
+      char label1[80], label2[80];
+
+      f >> label1 >> label2;
+
+      int i = 0;
+      while(!f.eof()) {
+	f >> dtc >> addr;
+	writeALTROregs(dtc,sequence,zs,offset,threshold,nsampl,npresampl,lgsup);
+	i++;
+      }
+    }
+
+    else { // default
+      for(int i=2; i<=15; i++) {
+        writeALTROregs(i,sequence,zs,offset,threshold,nsampl,npresampl,lgsup);
+      }
+    
+      for(int i=21; i<=34; i++) {
+        writeALTROregs(i,sequence,zs,offset,threshold,nsampl,npresampl,lgsup);
+      }
+    }
+    
+}
+
+void TSru::loadPedestalsOfOneCard(vector<TSequencerCommand*> *sequence, int dtc, int mod, int part)
+{
+
+  char filename[255];
+  TSequencerCommand *command;
+    
+  int  addr[255];
+  char sreg[255],tmp[255];
+    
+  int   altro,channel,ped;
+  float pd;
+
+  sprintf(filename,"Pedestal/%d/Pedestal_%d_SRUM%d-%d_DTC%d.txt",fPedRefRun,fPedRefRun,mod,part,dtc);
+  ifstream f;
+        
+  f.open(filename,ios::in);
+  printf("Reading from %s\n",filename);
+        
+  while(!f.eof()){
+            
+    f>>tmp>>altro>>tmp>>channel>>tmp>>pd;
+    ped = (int)pd;
+    printf("ALTRO: %d CHANNEL: %d PED: %d\n",altro,channel,ped);
+            
+    int FEC =  (int)dtc%20;
+    int branch = (int)dtc/20;
+            
+    int GTLaddr = FEC + branch*16;
+    int b = altro*2; // # ALTRO shifted up 1 bit
+    int d = channel*2 + b*16; // channnel shifted up 1 bit + ALTRO-bit info
+            
+    sprintf(sreg,"400%02x%02x6",GTLaddr,d);
+    charToHex(sreg,addr);
+            
+    command = new TSequencerCommand( 2, dtc, -1, -1, addr[0], ped, 1000 );
+    sequence->push_back( command );
+  }
+
+}
+
+void TSru::LoadPedestalsDefault(vector<TSequencerCommand*> *sequence, int mod, int part)
+{
+
+    char filename[255];
+    TSequencerCommand *command;
+    
+    int  addr[255];
+    char sreg[255],tmp[255];
+    
+    int   altro,channel,ped;
+    float pd;
+
+    for(int i=2; i<=15; i++) { //default
+        
+        sprintf(filename,"Pedestal/%d/Pedestal_%d_SRUM%d-%d_DTC%d.txt",fPedRefRun,fPedRefRun,mod,part,i);
+        ifstream f;
+        
+        f.open(filename,ios::in);
+        printf("Reading from %s\n",filename);
+        
+        while(!f.eof()){
+            
+            f>>tmp>>altro>>tmp>>channel>>tmp>>pd;
+            ped = (int)pd;
+            printf("ALTRO: %d CHANNEL: %d PED: %d\n",altro,channel,ped);
+            
+            int FEC =  (int)i%20;
+            int branch = (int)i/20;
+            
+            if(i==15) {
+                FEC =  (int)1%20;
+                branch = (int)1/20;
+            }
+            
+            int GTLaddr = FEC + branch*16;
+            int b = altro*2; // # ALTRO shifted up 1 bit
+            int d = channel*2 + b*16; // channnel shifted up 1 bit + ALTRO-bit info
+            
+            sprintf(sreg,"400%02x%02x6",GTLaddr,d);
+            charToHex(sreg,addr);
+            
+            command = new TSequencerCommand( 2, i, -1, -1, addr[0], ped, 1000 );
+            sequence->push_back( command );
+        }
+    }
+    
+    
+    for(int i=21; i<=34; i++) { //default
+        
+        sprintf(filename,"Pedestal/%d/Pedestal_%d_SRUM%d-%d_DTC%d.txt",fPedRefRun,fPedRefRun,mod,part,i);
+        ifstream f;
+        
+        f.open(filename,ios::in);
+        printf("Reading from %s\n",filename);
+        
+        while(!f.eof()){
+            
+            f>>tmp>>altro>>tmp>>channel>>tmp>>pd;
+            ped = (int)pd;
+            printf("ALTRO: %d CHANNEL: %d PED: %d\n",altro,channel,ped);
+            
+            int FEC =  (int)i%20;
+            int branch = (int)i/20;
+            int GTLaddr = FEC + branch*16;
+            
+            int b = altro*2; // # ALTRO shifted up 1 bit
+            int d = channel*2 + b*16; // channnel shifted up 1 bit + ALTRO-bit info
+            
+            sprintf(sreg,"400%02x%02x6",GTLaddr,d);
+            charToHex(sreg,addr);
+            
+            command = new TSequencerCommand( 2, i, -1, -1, addr[0], ped, 1000 );
+            sequence->push_back( command );
+        }
+    }
+
+}
+
+void TSru::LoadAPDsettingsDefault(vector<TSequencerCommand*> *sequence, char* prefix, int mod, int part)
+{
+    TSequencerCommand *command;    
+    int addr,bias;
+
+    char filename[80], line[1000];
+    FILE* fp;
+
+    for(int i=2; i<=15; i++) { //default
+        
+        sprintf(filename,"%s/APD_M%d-%d_FEE%.2d.dat",prefix,mod,part,i);
+        fp = fopen(filename,"r");
+        
+        if(!fp) {
+            sprintf(filename,"APDsettings/APD_M%d-%d_FEE%.2d.dat",mod,part,i);
+            fp = fopen(filename,"r");
+        }
+        
+        while(fgets(line,sizeof(line),fp)){
+            
+            if (*line == '#') continue;
+            sscanf(line,"%x %x",&addr,&bias);
+            
+            printf("Address: %x, bias: %x\n",addr,bias);
+            command = new TSequencerCommand( 2, i, -1, -1, addr, bias, 100000 );
+            sequence->push_back( command );
+        }
+        
+        //Apply changes with 1 sec delay per card!
+        command = new TSequencerCommand( 2, i, -1, -1, 0x1e, 0x0, 100000 );
+        sequence->push_back( command );
+    }
+    
+    for(int i=21; i<=34; i++) { //default
+        
+        sprintf(filename,"%s/APD_M%d-%d_FEE%.2d.dat",prefix,mod,part,i);
+        fp = fopen(filename,"r");
+        
+        if(!fp) {
+            sprintf(filename,"APDsettings/APD_M%d-%d_FEE%.2d.dat",mod,part,i);
+            fp = fopen(filename,"r");
+        }
+        
+        while(fgets(line,sizeof(line),fp)){
+            
+            if (*line == '#') continue;
+            sscanf(line,"%x %x",&addr,&bias);
+            
+            printf("Address: %x, bias: %x\n",addr,bias);
+            command = new TSequencerCommand( 2, i, -1, -1, addr, bias, 100000 );
+            sequence->push_back( command );
+        }
+        
+        //Apply changes with 1 sec delay per card!
+        command = new TSequencerCommand( 2, i, -1, -1, 0x1e, 0x0, 100000 );
+        sequence->push_back( command );
+    }
+}
+
+void TSru::CreateCardOnCFGServices(const char *serverRoot, char* buf)
+{
+    int mod, part;
+    
+    if(fNumber==1) { mod=1; part=2; } // M1-2
+    if(fNumber==2) { mod=1; part=3; } // M1-3
+    if(fNumber==3) { mod=2; part=0; } // M2-0
+    if(fNumber==4) { mod=2; part=1; } // M2-1
+    if(fNumber==5) { mod=2; part=2; } // M2-2
+    if(fNumber==6) { mod=2; part=3; } // M2-3
+    if(fNumber==7) { mod=3; part=0; } // M3-0
+    if(fNumber==8) { mod=3; part=1; } // M3-1
+    if(fNumber==9) { mod=3; part=2; } // M3-2
+    if(fNumber==10){ mod=3; part=3; } // M3-3
+    if(fNumber==11){ mod=4; part=0; } // M4-0
+    if(fNumber==12){ mod=4; part=1; } // M4-1
+    if(fNumber==13){ mod=4; part=2; } // M4-2
+    if(fNumber==14){ mod=4; part=3; } // M4-3
+    
+    char filename[80];
+    sprintf(filename,"M%d-%d/DTCmap.dat",mod,part);
+
+    ifstream f;
+    f.open(filename,ios::in);
+
+    if(f.is_open()) {
+       
+      int dtc, addr;
+      char label1[80], label2[80];
+
+      f >> label1 >> label2;
+
+      int i = 0;
+      while(!f.eof()) {
+	f >> dtc >> addr;
+        sprintf( buf, "%s/%s%02d/FEE%02d/ISON", serverRoot, DCS_DIM_SRU, fNumber,dtc);
+        TCardOnCFG* cc = new TCardOnCFG(buf,dtc,fSequence); cc->SetRefresh(4);
+        fConfigMonitor.push_back(cc);
+	i++;
+      }
+    }
+
+    else { // create default configuration
+      for (int i=1; i<=15; i++) {
+        sprintf( buf, "%s/%s%02d/FEE%02d/ISON", serverRoot, DCS_DIM_SRU, fNumber,i);
+        TCardOnCFG* cc = new TCardOnCFG(buf,i,fSequence); cc->SetRefresh(4);
+        fConfigMonitor.push_back(cc);
+      }
+    
+      for (int i=21; i<=34; i++) {
+        sprintf( buf, "%s/%s%02d/FEE%02d/ISON", serverRoot, DCS_DIM_SRU, fNumber,i);
+        TCardOnCFG* cc = new TCardOnCFG(buf,i,fSequence); cc->SetRefresh(4);
+        fConfigMonitor.push_back(cc);
+      }
+    }
+
+}
+
+void TSru::CreateFEEs(char* buf)
+{
+  
+    TFee* fee;
+    int mod, part;
+    
+    if(fNumber==1) { mod=1; part=2; } // M1-2
+    if(fNumber==2) { mod=1; part=3; } // M1-3
+    if(fNumber==3) { mod=2; part=0; } // M2-0
+    if(fNumber==4) { mod=2; part=1; } // M2-1
+    if(fNumber==5) { mod=2; part=2; } // M2-2
+    if(fNumber==6) { mod=2; part=3; } // M2-3
+    if(fNumber==7) { mod=3; part=0; } // M3-0
+    if(fNumber==8) { mod=3; part=1; } // M3-1
+    if(fNumber==9) { mod=3; part=2; } // M3-2
+    if(fNumber==10){ mod=3; part=3; } // M3-3
+    if(fNumber==11){ mod=4; part=0; } // M4-0
+    if(fNumber==12){ mod=4; part=1; } // M4-1
+    if(fNumber==13){ mod=4; part=2; } // M4-2
+    if(fNumber==14){ mod=4; part=3; } // M4-3
+    
+    char filename[80];
+    sprintf(filename,"M%d-%d/DTCmap.dat",mod,part);
+
+    ifstream f;
+    f.open(filename,ios::in);
+
+    if(f.is_open()) {
+      printf("Reading DTC -> PHYADDR mapping from file %s..\n", filename);
+      
+      int dtc, addr;
+      char label1[80], label2[80];
+
+      f >> label1 >> label2;
+
+      int i = 0;
+      while(!f.eof()) {
+	f >> dtc >> addr;
+	printf("%s %d, %s 0x%d\n", label1, dtc, label2, addr);
+        fee = new TFee( buf, dtc, fNumber );
+        fee->SetAltro( fAltro );
+        fFee->push_back( fee );
+        (*fDevice)[dtc] = fee;
+	i++;
+      }
+    }
+
+    else {
+      // create the FEE card default objects
+      for(int i=2; i<=15; i++){
+        fee = new TFee( buf, i, fNumber );
+        fee->SetAltro( fAltro );
+        fFee->push_back( fee );
+        (*fDevice)[i] = fee;
+      }
+    
+      for(int i=21; i<=34; i++){
+        fee = new TFee( buf, i, fNumber );
+        fee->SetAltro( fAltro );
+        fFee->push_back( fee );
+        (*fDevice)[i] = fee;
+      }
+    }
+
 }
 
 void TSru::CreateTRU(char* buf, int position)
